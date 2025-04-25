@@ -51,10 +51,12 @@ lgb_probs = lgb.predict_proba(X_test)[:, 1]
 lgb_preds = lgb.predict(X_test)
 
 # --- Meta-model  ---
+meta_model = LogisticRegression()
 stacked_features = np.column_stack((tabnet_probs, lgb_probs))
 meta_model.fit(stacked_features, y_test)
 hybrid_probs = meta_model.predict_proba(stacked_features)[:, 1]
 hybrid_preds = meta_model.predict(stacked_features)
+
 
 # --- Evaluation Function ---
 def evaluate_model(name, y_true, y_pred):
