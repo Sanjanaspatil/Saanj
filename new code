@@ -1,0 +1,165 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split, StratifiedKFold
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.linear_model import LogisticRegression
+from lightgbm import LGBMClassifier
+from imblearn.over_sampling import SMOTE
+import matplotlib.pyplot as plt
+from pytorch_tabnet.tab_model import TabNetClassifier
+import torch
+
+# Load and preprocess dataset
+df = pd.read_csv("Mental Health Dataset.csv")
+df.dropna(inplace=True)
+df.drop_duplicates(inplace=True)
+df = df.loc[:, df.apply(pd.Series.nunique) > 1]
+df = df.head(20000)
+
+# Encode categorical columns
+label_encoders = {}
+for col in df.select_dtypes(include='object').columns:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col])
+    label_encoders[col] = le
+
+# Define features and target for treatment prediction
+X = df.drop("treatment", axis=1)
+y = df["treatment"]
+
+# Scale and balance
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+sm = SMOTE(random_state=42)
+X_res, y_res = sm.fit_resample(X_scaled, y)
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.2, random_state=42)
+
+# --- TabNet ---
+tabnet = TabNetClassifier(
+    n_d=16, n_a=16, n_steps=5,
+    gamma=1.3, lambda_sparse=1e-4,
+    optimizer_fn=torch.optim.Adam,
+    optimizer_params=dict(lr=2e-2),
+    scheduler_params={"step_size":10, "gamma":0.9},
+    scheduler_fn=torch.optim.lr_scheduler.StepLR,
+    mask_type='entmax',
+    verbose=0, device_name='auto'
+)
+tabnet.fit(X_train=X_train, y_train=y_train, eval_set=[(X_test, y_test)], patience=20)
+tabnet_probs = tabnet.predict_proba(X_test)[:, 1]
+tabnet_preds = (tabnet_probs > 0.5).astype(int)
+
+# --- LightGBM ---
+lgb = LGBMClassifier(
+    n_estimators=300, learning_rate=0.03, max_depth=6,
+    subsample=0.9, colsample_bytree=0.9, random_state=42
+)
+lgb.fit(X_train, y_train, eval_set=[(X_test, y_test)], early_stopping_rounds=20, eval_metric='logloss', verbose=False)
+lgb_probs = lgb.predict_proba(X_test)[:, 1]
+lgb_preds = lgb.predict(X_test)
+
+# --- Meta-model ---
+meta_model = LogisticRegression(C=0.1, penalty='l2', solver='liblinear')
+stacked_features = np.column_stack((tabnet_probs, lgb_probs))
+meta_model.fit(stacked_features, y_test)
+hybrid_probs = meta_model.predict_proba(stacked_features)[:, 1]
+hybrid_preds = meta_model.predict(stacked_features)
+
+# --- Evaluation Function ---
+def evaluate_model(name, y_true, y_pred):
+    acc = accuracy_score(y_true, y_pred)
+    cm = confusion_matrix(y_true, y_pred)
+    mis = np.sum(cm) - np.trace(cm)
+    print(f"\n✅ {name} Accuracy: {acc:.4f}")
+    print(f"🔍 {name} Misclassifications: {mis}")
+    ConfusionMatrixDisplay(confusion_matrix=cm).plot(cmap='Blues')
+    plt.title(f"{name} Confusion Matrix")
+    plt.show()
+
+evaluate_model("TabNet", y_test, tabnet_preds)
+evaluate_model("LightGBM", y_test, lgb_preds)
+evaluate_model("Hybrid Model", y_test, hybrid_preds)
+
+# --- Export Predictions & Risk Assessment ---
+def assign_risk(prob):
+    if prob >= 0.8:
+        return "High"
+    elif prob >= 0.5:
+        return "Medium"
+    else:
+        return "Low"
+
+export_df = pd.DataFrame({
+    "Actual": y_test.values,
+    "TabNet_Prob": tabnet_probs,
+    "LightGBM_Prob": lgb_probs,
+    "Hybrid_Prob": hybrid_probs,
+    "Hybrid_Prediction": hybrid_preds,
+    "Risk_Level": [assign_risk(p) for p in hybrid_probs]
+})
+
+# --- Disorder Inference ---
+def infer_disorder(row):
+    if row['Mood_Swings'] == label_encoders['Mood_Swings'].transform(['High'])[0] or row['Coping_Struggles'] == label_encoders['Coping_Struggles'].transform(['Yes'])[0]:
+        return "Bipolar/Depression"
+    elif row['Social_Weakness'] == label_encoders['Social_Weakness'].transform(['Yes'])[0] and row['Work_Interest'] == label_encoders['Work_Interest'].transform(['No'])[0]:
+        return "Social Anxiety"
+    elif row['Growing_Stress'] == label_encoders['Growing_Stress'].transform(['Yes'])[0] and row['Mental_Health_History'] == label_encoders['Mental_Health_History'].transform(['Yes'])[0]:
+        return "General Anxiety"
+    else:
+        return "None"
+
+df['disorder'] = df.apply(infer_disorder, axis=1)
+le_disorder = LabelEncoder()
+df['disorder_encoded'] = le_disorder.fit_transform(df['disorder'])
+
+# Disorder classification
+X_dis = df.drop(columns=["treatment", "disorder", "disorder_encoded"], errors='ignore')
+y_dis = df["disorder_encoded"]
+X_dis_scaled = scaler.fit_transform(X_dis)
+X_train_dis, X_test_dis, y_train_dis, y_test_dis = train_test_split(X_dis_scaled, y_dis, test_size=0.2, random_state=42, stratify=y_dis)
+
+lgb_dis = LGBMClassifier(objective='multiclass', num_class=len(le_disorder.classes_), n_estimators=300, random_state=42)
+lgb_dis.fit(X_train_dis, y_train_dis, eval_set=[(X_test_dis, y_test_dis)], early_stopping_rounds=20, eval_metric='multi_logloss', verbose=False)
+dis_preds = lgb_dis.predict(X_test_dis)
+dis_preds_labels = le_disorder.inverse_transform(dis_preds)
+dis_acc = accuracy_score(y_test_dis, dis_preds)
+print(f"\n🧠 Disorder Prediction Accuracy: {dis_acc:.4f}")
+
+# Ensure sizes match
+export_df = export_df.iloc[:len(dis_preds_labels)].copy()
+export_df["Predicted_Disorder"] = dis_preds_labels
+export_df.to_csv("hybrid_predictions_with_disorder.csv", index=False)
+print("📤 Exported predictions with disorders to 'hybrid_predictions_with_disorder.csv'")
+
+# --- Cross Validation ---
+print("\n🔄 Running Stratified K-Fold Cross Validation on Hybrid Stack...")
+kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+cv_scores = []
+
+for train_idx, test_idx in kf.split(X_res, y_res):
+    X_tr, X_te = X_res[train_idx], X_res[test_idx]
+    y_tr, y_te = y_res[train_idx], y_res[test_idx]
+
+    tabnet = TabNetClassifier(verbose=0)
+    tabnet.fit(X_train=X_tr, y_train=y_tr, eval_set=[(X_te, y_te)], patience=10)
+
+    lgb = LGBMClassifier(n_estimators=300)
+    lgb.fit(X_tr, y_tr, eval_set=[(X_te, y_te)], early_stopping_rounds=20, eval_metric='logloss', verbose=False)
+
+    tab_probs = tabnet.predict_proba(X_te)[:, 1]
+    lgb_probs = lgb.predict_proba(X_te)[:, 1]
+    stacked = np.column_stack((tab_probs, lgb_probs))
+
+    meta = LogisticRegression(C=0.1, penalty='l2', solver='liblinear')
+    meta.fit(stacked, y_te)
+    final_preds = meta.predict(stacked)
+
+    acc = accuracy_score(y_te, final_preds)
+    cv_scores.append(acc)
+
+print(f"✅ Cross-Validation Accuracy Scores: {cv_scores}")
+print(f"📊 Mean CV Accuracy: {np.mean(cv_scores):.4f}")
