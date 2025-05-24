@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Prediction Result</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #e7f3fe;
+            padding: 40px;
+        }
+        .result-box {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 600px;
+            margin: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .result-box h2 {
+            color: #333333;
+        }
+        .submission-id {
+            margin-top: 15px;
+            font-size: 16px;
+            color: #555555;
+            background-color: #f7f9fc;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+        }
+        .prediction {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+            color: #2e7d32;
+        }
+        .risk {
+            font-size: 20px;
+            margin-top: 10px;
+            color: #d84315;
+        }
+        .scores {
+            margin-top: 25px;
+            text-align: left;
+        }
+        .scores ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .scores li {
+            font-size: 16px;
+            margin: 6px 0;
+        }
+        .classification-report {
+            margin-top: 25px;
+            text-align: left;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #999999;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f0f0f0;
+        }
+        a {
+            display: inline-block;
+            margin-top: 30px;
+            text-decoration: none;
+            background-color: #4caf50;
+            color: white;
+            padding: 10px 18px;
+            border-radius: 6px;
+        }
+        a:hover {
+            background-color: #388e3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="result-box">
+        <h2>Prediction Result</h2>
+        
+        <p class="submission-id">
+            Your submission ID is: <strong>{{ submission_id }}</strong><br>
+            Please save this ID to retrieve your form data later.
+        </p>
+
+        <p class="prediction">Treatment Required: {{ prediction }}</p>
+        <p class="risk">⚠️ Risk Level: {{ risk_level }}</p>
+
+        <div class="scores">
+            <h3>Model Confidence Scores</h3>
+            <ul>
+                <li>TabNet Confidence: {{ tabnet_score }}</li>
+                <li>LightGBM Confidence: {{ lgb_score }}</li>
+                <li>Final Meta-Model Confidence: {{ meta_score }}</li>
+            </ul>
+        </div>
+
+        {% if classification_report %}
+        <div class="classification-report">
+            <h3>Classification Report (Test Set)</h3>
+            <table>
+                <tr>
+                    <th>Label</th>
+                    <th>Precision</th>
+                    <th>Recall</th>
+                    <th>F1-Score</th>
+                    <th>Support</th>
+                    <th>Probable Disorder</th>
+                </tr>
+                {% for label, metrics in classification_report.items() if label in ['0', '1'] %}
+                <tr>
+                    <td>{{ label }}</td>
+                    <td>{{ "%.3f"|format(metrics['precision']) }}</td>
+                    <td>{{ "%.3f"|format(metrics['recall']) }}</td>
+                    <td>{{ "%.3f"|format(metrics['f1-score']) }}</td>
+                    <td>{{ metrics['support'] }}</td>
+                    <td>{{ disorder_type }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        {% endif %}
+
+        <a href="/">← Back To Main Menu</a>
+    </div>
+</body>
+</html>

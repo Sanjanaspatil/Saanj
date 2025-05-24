@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mental Health Treatment Predictor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f3f4f6;
+            padding: 20px;
+        }
+        form {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 600px;
+            margin: auto;
+            box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 15px;
+        }
+        select, input[type="submit"] {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        input[type="submit"] {
+            background-color: #4caf50;
+            color: white;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        input[type="text"] {
+            width: 97%;
+            padding: 8px;
+            margin-top: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h2 style="text-align:center;">Mental Health Treatment Prediction</h2>
+    <form method="POST" action="/predict">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required>
+        <label for="Gender">Gender</label>
+        <select name="Gender" required>
+            <option value="Female">Female</option>
+            <option value="Male">Male</option>
+            <option value="Other">Other</option>
+        </select>
+
+        <label for="Country">Country</label>
+        <select name="Country" required>
+            <option value="United States">United States</option>
+            <option value="Poland">Poland</option>
+            <option value="Other">Other</option>
+        </select>
+
+        <label for="Occupation">Occupation</label>
+        <select name="Occupation" required>
+            <option value="Corporate">Corporate</option>
+            <option value="Student">Student</option>
+            <option value="Other">Other</option>
+        </select>
+
+        <label for="self_employed">Self Employed</label>
+        <select name="self_employed" required>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+        </select>
+
+        <label for="family_history">Family History</label>
+        <select name="family_history" required>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+        </select>
+
+        <label for="Days_Indoors">Days Indoors</label>
+        <select name="Days_Indoors" required>
+            <option value="1-14 days">1-14 days</option>
+            <option value="15-30 days">15-30 days</option>
+            <option value="More than 30 days">More than 30 days</option>
+        </select>
+
+        <label for="Growing_Stress">Growing Stress</label>
+        <select name="Growing_Stress" required>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+        </select>
+
+        <label for="Changes_Habits">Changes in Habits</label>
+        <select name="Changes_Habits" required>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+        </select>
+
+        <label for="Mental_Health_History">Mental Health History</label>
+        <select name="Mental_Health_History" required>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+        </select>
+
+        <label for="Mood_Swings">Mood Swings</label>
+        <select name="Mood_Swings" required>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+        </select>
+
+        <label for="Coping_Struggles">Coping Struggles</label>
+        <select name="Coping_Struggles" required>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+        </select>
+
+        <label for="Work_Interest">Work Interest</label>
+        <select name="Work_Interest" required>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+        </select>
+
+        <label for="Social_Weakness">Social Weakness</label>
+        <select name="Social_Weakness" required>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+        </select>
+
+        <label for="mental_health_interview">Mental Health Interview</label>
+        <select name="mental_health_interview" required>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+            <option value="Maybe">Maybe</option>
+        </select>
+
+        <label for="care_options">Care Options</label>
+        <select name="care_options" required>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+            <option value="Not sure">Not sure</option>
+        </select>
+
+        <input type="submit" value="Predict">
+    </form>
+</body>
+</html>

@@ -1,0 +1,9 @@
+Flask==2.3.2
+numpy
+pandas
+torch
+torchvision
+pytorch-tabnet
+scikit-learn
+lightgbm
+joblib
