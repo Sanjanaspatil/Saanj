@@ -152,3 +152,5 @@ for train_idx, test_idx in kf.split(X_res, y_res):
 
 print(f"✅ Cross-Validation Accuracy Scores: {cv_scores}")
 print(f"📊 Mean CV Accuracy: {np.mean(cv_scores):.4f}")
+
+
